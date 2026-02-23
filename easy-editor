@@ -1,0 +1,163 @@
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel, QVBoxLayout, QHBoxLayout, QListWidget, QFileDialog
+from PyQt5.QtGui import QPixmap
+from PIL import Image, ImageEnhance, ImageOps
+import os
+app = QApplication([])
+main_win = QWidget()
+main_win.resize(700, 400)
+main_win.setWindowTitle('Easy Editor')
+
+# Создание виджетов
+folder = QPushButton('Папка')
+folder_list = QListWidget()
+
+pic = QLabel('Картинка')
+
+left = QPushButton('Лево')
+right = QPushButton('Право')
+mirror = QPushButton('Зеркало')
+sharpness = QPushButton('Резкость')
+bw = QPushButton('Ч/б')
+reset_filters = QPushButton('Сбросить фильтры')
+
+
+#Создание лейаутов
+
+#Левая колонка
+left_col = QVBoxLayout()
+left_col.addWidget(folder)
+left_col.addWidget(folder_list)
+
+#Нижняя панель кнопок
+bottom_buttons = QHBoxLayout()
+bottom_buttons.addWidget(left)
+bottom_buttons.addWidget(right)
+bottom_buttons.addWidget(mirror)
+bottom_buttons.addWidget(sharpness)
+bottom_buttons.addWidget(bw)
+bottom_buttons.addWidget(reset_filters)
+
+#Правая колонка
+right_col = QVBoxLayout()
+right_col.addWidget(pic)
+right_col.addLayout(bottom_buttons)
+
+
+#Главный лейаут
+layout_main = QHBoxLayout()
+layout_main.addLayout(left_col)
+layout_main.addLayout(right_col)
+
+
+class ImageProcessor():
+
+    #Конструктор класса
+    def __init__(self):
+        self.image = None
+        self.filename = None
+        self.dir = None
+        self.save_dir = "Modified/"
+
+    #Методы класса
+    def loadImage(self, filename):
+        self.filename = filename
+        image_path = os.path.join(workdir, filename)
+        self.image = Image.open(image_path)
+    
+    def showImage(self, path):
+        pic.hide()
+        pixmapimage = QPixmap(path)
+        w, h = pic.width(), pic.height()
+        pixmapimage = pixmapimage.scaled(w, h, Qt.KeepAspectRatio)
+        pic.setPixmap(pixmapimage)
+        pic.show()
+
+    def do_bw(self):
+        self.image = self.image.convert('L')
+        self.saveImage()
+        image_path = os.path.join(workdir, self.save_dir, self.filename)
+        self.showImage(image_path)
+
+    def do_left(self):
+        self.image = self.image.rotate(90)
+        self.saveImage()
+        image_path = os.path.join(workdir, self.save_dir, self.filename)
+        self.showImage(image_path)
+    
+    def do_right(self):
+        self.image = self.image.rotate(-90)
+        self.saveImage()
+        image_path = os.path.join(workdir, self.save_dir, self.filename)
+        self.showImage(image_path)
+
+    def do_mirror(self):
+        self.image = ImageOps.mirror(self.image)
+        self.saveImage()
+        image_path = os.path.join(workdir, self.save_dir, self.filename)
+        self.showImage(image_path)
+        
+    def do_sharpness(self):
+        enhancer = ImageEnhance.Contrast(self.image)
+        self.image = enhancer.enhance(1.5)
+        self.saveImage()
+        image_path = os.path.join(workdir, self.save_dir, self.filename)
+        self.showImage(image_path)
+
+    def do_reset_filters(self):
+        self.loadImage(self.filename)
+        image_path = os.path.join(workdir, self.filename)
+        self.showImage(image_path)
+
+    def saveImage(self):
+        path = os.path.join(workdir, self.save_dir)
+        if not(os.path.exists(path) or os.path.isdir(path)):
+            os.mkdir(path)
+        image_path = os.path.join(path, self.filename)
+        self.image.save(image_path)
+
+#Функции
+workdir = ''
+workimage = ImageProcessor()
+def chooseWorkdir():
+    global workdir
+    workdir = QFileDialog.getExistingDirectory()
+
+def filter(files, extensions):
+    result = []
+    for filename in files:
+        for extension in extensions:
+            if filename.endswith(extension):
+                result.append(filename)
+    return result
+
+def showFilenamesList():
+    extensions = ['.jpg','.jpeg', '.png', '.gif', '.bmp']
+    chooseWorkdir()
+    files = os.listdir(workdir)
+    result = filter(files, extensions)
+    folder_list.clear()
+    for i in result:
+        folder_list.addItem(i)
+
+def showChosenImage():
+    if folder_list.currentRow() >= 0:
+        filename = folder_list.currentItem().text()
+        workimage.loadImage(filename)
+        image_path = os.path.join(workdir, workimage.filename)
+        workimage.showImage(image_path)
+
+#Подключение всех методов/функций
+bw.clicked.connect(workimage.do_bw)
+left.clicked.connect(workimage.do_left)
+right.clicked.connect(workimage.do_right)
+mirror.clicked.connect(workimage.do_mirror)
+sharpness.clicked.connect(workimage.do_sharpness)
+reset_filters.clicked.connect(workimage.do_reset_filters)
+
+folder.clicked.connect(showFilenamesList)
+folder_list.currentRowChanged.connect(showChosenImage)
+main_win.setLayout(layout_main)
+
+main_win.show()
+app.exec()
